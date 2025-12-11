@@ -1,172 +1,135 @@
 import streamlit as st
 import pandas as pd
+import pickle
 
-# ---------------------------------------------------------
-# PAGE CONFIG
-# ---------------------------------------------------------
+# ---------------------------
+# PAGE CONFIG + CUSTOM CSS
+# ---------------------------
 st.set_page_config(page_title="Book Recommender", layout="wide")
 
-# ---------------------------------------------------------
-# DARK MODE / LIGHT MODE TOGGLE
-# ---------------------------------------------------------
-mode = st.sidebar.radio("🌗 Choose Theme", ["Light Mode", "Dark Mode"])
-
-if mode == "Light Mode":
-    background = "linear-gradient(135deg, #d8e9ff, #f5faff)"
-    card_bg = "rgba(255, 255, 255, 0.72)"
-    card_border = "rgba(255,255,255,0.35)"
-    title_color = "#002b5c"
-    author_color = "#444"
-else:
-    background = "linear-gradient(135deg, #1f1f1f, #121212)"
-    card_bg = "rgba(30, 30, 30, 0.85)"
-    card_border = "rgba(255,255,255,0.15)"
-    title_color = "#e6e6e6"
-    author_color = "#bbbbbb"
-
-# ---------------------------------------------------------
-# ULTRA MODERN UI (Glassmorphism + Hover Animation)
-# ---------------------------------------------------------
-st.markdown(f"""
+# LIGHT BLUE BACKGROUND + CLEAN CARD DESIGN
+page_bg = """
 <style>
-body, .stApp {{
-    background: {background};
-    transition: all 0.3s ease-in-out;
-}}
+    body {
+        background-color: #e8f3ff !important;  /* Dim light blue */
+    }
+    .stApp {
+        background-color: #e8f3ff !important;
+    }
+    .main > div {
+        background-color: #e8f3ff !important;
+    }
 
-/* Page Title */
-h1, h2, h3, h4 {{
-    font-family: 'Segoe UI', sans-serif;
-    font-weight: 700 !important;
-    color: {title_color} !important;
-}}
-
-/* Book Card */
-.card {{
-    background: {card_bg};
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    padding: 22px;
-    border-radius: 16px;
-    text-align: center;
-    box-shadow: 0px 4px 18px rgba(0,0,0,0.15);
-    transition: 0.25s ease-in-out;
-    border: 1px solid {card_border};
-}}
-
-.card:hover {{
-    transform: translateY(-6px) scale(1.03);
-    box-shadow: 0px 6px 22px rgba(0,0,0,0.35);
-}}
-
-/* Book Title */
-.book-title {{
-    font-size: 20px;
-    font-weight: 700;
-    margin-top: 12px;
-    margin-bottom: 6px;
-    color: {title_color};
-}}
-
-/* Book Author */
-.book-author {{
-    font-size: 16px;
-    color: {author_color};
-    margin-bottom: 4px;
-}}
-
-/* Sidebar glass look */
-.css-1d391kg, .css-1lcbmhc {{
-    background: rgba(255, 255, 255, 0.70) !important;
-    backdrop-filter: blur(12px) !important;
-    border-right: 1px solid rgba(255,255,255,0.35);
-}}
-
+    /* Card Styling */
+    .book-card {
+        background: white;
+        padding: 12px;
+        border-radius: 12px;
+        box-shadow: 0px 2px 8px rgba(0,0,0,0.12);
+        text-align: center;
+        margin-bottom: 20px;
+        transition: 0.2s ease;
+    }
+    .book-card:hover {
+        transform: scale(1.03);
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.18);
+    }
 </style>
-""", unsafe_allow_html=True)
+"""
 
-# ---------------------------------------------------------
-# DATA (Embedded)
-# ---------------------------------------------------------
-books_data = {
-    "Book-Title": [
-        "The Alchemist", "Harry Potter", "The Power of Habit",
-        "Atomic Habits", "Rich Dad Poor Dad", "The Hobbit"
-    ],
-    "Book-Author": [
-        "Paulo Coelho", "J.K. Rowling", "Charles Duhigg",
-        "James Clear", "Robert Kiyosaki", "J.R.R. Tolkien"
-    ],
-    "Image-URL": [
-        "https://m.media-amazon.com/images/I/71aFt4+OTOL.jpg",
-        "https://m.media-amazon.com/images/I/81YOuOGFCJL.jpg",
-        "https://m.media-amazon.com/images/I/91bYsX41DVL.jpg",
-        "https://m.media-amazon.com/images/I/81wgcld4wxL.jpg",
-        "https://m.media-amazon.com/images/I/81bsw6fnUiL.jpg",
-        "https://m.media-amazon.com/images/I/91b0C2YNSrL.jpg",
-    ]
-}
+st.markdown(page_bg, unsafe_allow_html=True)
 
-df = pd.DataFrame(books_data)
+# ---------------------------
+# LOAD DATA
+# ---------------------------
+books = pd.read_csv("Books.csv", low_memory=False)
+ratings = pd.read_csv("Ratings.csv")
+users = pd.read_csv("Users.csv")
 
-similar_books = {
-    "The Alchemist": ["The Hobbit", "Atomic Habits", "Rich Dad Poor Dad"],
-    "Harry Potter": ["The Hobbit", "The Alchemist", "Atomic Habits"],
-    "The Power of Habit": ["Atomic Habits", "Rich Dad Poor Dad", "The Alchemist"],
-    "Atomic Habits": ["The Power of Habit", "Rich Dad Poor Dad", "The Alchemist"],
-    "Rich Dad Poor Dad": ["The Power of Habit", "Atomic Habits", "The Alchemist"],
-    "The Hobbit": ["Harry Potter", "The Alchemist", "Atomic Habits"]
-}
+popular_books = pickle.load(open("popular.pkl", "rb"))
+popular_books = popular_books.reset_index(drop=True)
 
-# ---------------------------------------------------------
+pt = pickle.load(open("pt.pkl", "rb"))
+books_final = pickle.load(open("books.pkl", "rb"))
+similarity = pickle.load(open("similarity_scores.pkl", "rb"))
+
+book_list = pt.index.tolist()
+
+# ---------------------------
+# RECOMMEND FUNCTION
+# ---------------------------
+def recommend(book_name):
+    index = pt.index.get_loc(book_name)
+    distances = similarity[index]
+
+    book_list_indexes = sorted(
+        list(enumerate(distances)),
+        reverse=True,
+        key=lambda x: x[1]
+    )[1:6]
+
+    recommendations = []
+
+    for i in book_list_indexes:
+        temp = books_final[books_final["Book-Title"] == pt.index[i[0]]]
+
+        recommendations.append({
+            "title": pt.index[i[0]],
+            "author": temp["Book-Author"].values[0],
+            "image": temp["Image-URL-M"].values[0]
+        })
+
+    return recommendations
+
+# ---------------------------
 # SIDEBAR
-# ---------------------------------------------------------
+# ---------------------------
 menu = st.sidebar.radio(
-    "📘 Menu",
+    "Select Feature",
     ["Popular Books", "Recommend Books"]
 )
 
-# ---------------------------------------------------------
-# POPULAR BOOKS PAGE
-# ---------------------------------------------------------
+# ---------------------------
+# POPULAR BOOKS
+# ---------------------------
 if menu == "Popular Books":
-    st.title("🔥 Trending & Popular Books")
-    cols = st.columns(3)
-    index = 0
+    st.title("Popular Books")
 
-    for i, row in df.iterrows():
-        with cols[index]:
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.image(row["Image-URL"], use_column_width=True)
-            st.markdown(f"<div class='book-title'>{row['Book-Title']}</div>", unsafe_allow_html=True)
-            st.markdown(f"<div class='book-author'>{row['Book-Author']}</div>", unsafe_allow_html=True)
+    for i in range(len(popular_books["Book-Title"])):
+        col1, col2 = st.columns([1, 3])
+
+        with col1:
+            st.image(popular_books["Image-URL-M"][i], width=120)
+
+        with col2:
+            st.markdown(f"<div class='book-card'>", unsafe_allow_html=True)
+            st.subheader(popular_books["Book-Title"][i])
+            st.write("Author:", popular_books["Book-Author"][i])
+            st.write("Avg Rating:", str(popular_books["avg_rating"][i]))
             st.markdown("</div>", unsafe_allow_html=True)
 
-        index = (index + 1) % 3
-
-# ---------------------------------------------------------
-# RECOMMENDATION PAGE
-# ---------------------------------------------------------
+# ---------------------------
+# RECOMMEND BOOKS
+# ---------------------------
 if menu == "Recommend Books":
-    st.title("🎯 Smart Book Recommendation System")
+    st.title("Book Recommendation System")
 
-    selected_book = st.selectbox("Choose a Book", df["Book-Title"])
+    selected_book = st.selectbox(
+        "Select a Book",
+        book_list,
+        index=0
+    )
 
-    if st.button("🔍 Recommend"):
-        st.subheader(f"✨ Books similar to **{selected_book}**")
+    if st.button("Recommend"):
+        st.subheader(f"Books similar to **{selected_book}**")
+        data = recommend(selected_book)
 
-        recs = similar_books[selected_book]
-        result_df = df[df["Book-Title"].isin(recs)]
+        cols = st.columns(5)
 
-        cols = st.columns(3)
-        index = 0
-
-        for i, row in result_df.iterrows():
-            with cols[index]:
-                st.markdown("<div class='card'>", unsafe_allow_html=True)
-                st.image(row["Image-URL"], use_column_width=True)
-                st.markdown(f"<div class='book-title'>{row['Book-Title']}</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='book-author'>{row['Book-Author']}</div>", unsafe_allow_html=True)
+        for idx, col in enumerate(cols):
+            with col:
+                st.markdown("<div class='book-card'>", unsafe_allow_html=True)
+                st.image(data[idx]["image"])
+                st.write(f"{data[idx]['title']}")
+                st.write(f"{data[idx]['author']}")
                 st.markdown("</div>", unsafe_allow_html=True)
-
-            index = (index + 1) % 3
