@@ -3,7 +3,7 @@
 A modern, fast, and clean book recommender web app built with Streamlit.
 The app suggests similar books based on a predefined similarity mapping and displays them using an elegant glass-morphism UI.
 
-## 🚀 Features 
+## 🚀 Features  
 - 🔥 Popular Books Section
 - 🎯 Smart Book Recommendations 
 - 🌗 Built-in Dark Mode / Light Mode Toggle
