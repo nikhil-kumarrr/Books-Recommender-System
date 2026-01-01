@@ -3,16 +3,16 @@
 A modern, fast, and clean book recommender web app built with Streamlit.
 The app suggests similar books based on a predefined similarity mapping and displays them using an elegant glass-morphism UI.
 
-## 🚀 Features 
+## 🚀 Features  
 - 🔥 Popular Books Section
-- 🎯 Smart Book Recommendations
+- 🎯 Smart Book Recommendations 
 - 🌗 Built-in Dark Mode / Light Mode Toggle
 - 🪟 Ultra Modern Glass UI
-- ⚡ Instant suggestions
+- ⚡ Instant suggestions  
 - 📱 Responsive layout
 
 ## 🧠 How It Works
-This project uses a static similarity dictionary to recommend books.
+This project uses a static similarity dictionary to recommend books. 
 When a user selects a book, the system retrieves the top similar titles and displays them with images, authors, and clean UI formatting.
 
 No external API calls. No ML model loading time.
